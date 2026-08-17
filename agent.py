@@ -16,7 +16,7 @@ class Agent:
         self.epsilon = 0 
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = Linear_QNet(11, 256, 3)
+        self.model = Linear_QNet(17, 256, 3) # input states, nodes, output states
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
         self.record = 0
@@ -50,20 +50,74 @@ class Agent:
             except Exception as e:
                 print(f"Problem restoring previous training state: {e}")
 
+    def _get_ray_distances(self, game, direction_str):
+        """Casts a ray in a given direction and returns distance to danger & food"""
+        x, y = game.head[0], game.head[1]
+
+        # Determine the grid step vector for this absolute direction
+        dx, dy = 0, 0
+        if direction_str == "RIGHT": dx = BLOCK_SIZE
+        elif direction_str == "LEFT": dx = -BLOCK_SIZE
+        elif direction_str == "DOWN": dy = BLOCK_SIZE
+        elif direction_str == "UP": dy = -BLOCK_SIZE
+
+        distance = 0.0
+        danger_dist = 1.0 # 1.0 means no danger seen (out of bounds)
+        food_dist = 1.0
+
+        # Max steps across the screen boundary box
+        max_steps = max(game.w, game.h) // BLOCK_SIZE
+
+        for step in range(1, max_steps + 1):
+            check_pt = [x + (dx * step), y + (dy * step)]
+            distance_normalized = step / max_steps
+
+            # Track if food is on this ray path
+            if check_pt == game.food and food_dist == 1.0:
+                food_dist = distance_normalized
+
+            # Track if a collision hazard is on this ray path
+            if game.is_collision(check_pt) and danger_dist == 1.0:
+                danger_dist = distance_normalized
+                break # Stop casting once we find the closest structural wall/body
+
+        return danger_dist, food_dist
+
     def get_state(self, game):
         head = game.head
+
+        # 1. Map relative directions (Straight, Right, Left) to absolute grid layout headings
+        clock_wise = ["RIGHT", "DOWN", "LEFT", "UP"]
+        idx = clock_wise.index(game.direction)
         
+        dir_straight = clock_wise[idx]
+        dir_right = clock_wise[(idx + 1) % 4]
+        dir_left = clock_wise[(idx - 1) % 4]
+
         point_l = [head[0] - BLOCK_SIZE, head[1]]
         point_r = [head[0] + BLOCK_SIZE, head[1]]
         point_u = [head[0], head[1] - BLOCK_SIZE]
         point_d = [head[0], head[1] + BLOCK_SIZE]
         
+        # 2. Extract long-range distances via Raycasting
+        danger_s, food_s = self._get_ray_distances(game, dir_straight)
+        danger_r, food_r = self._get_ray_distances(game, dir_right)
+        danger_l, food_l = self._get_ray_distances(game, dir_left)
+        
+        # 3. Retain core basic states for backup stability
+        head = game.head
         dir_l = game.direction == 'LEFT'
         dir_r = game.direction == 'RIGHT'
         dir_u = game.direction == 'UP'
         dir_d = game.direction == 'DOWN'
 
+        # 4. Construct our 17-element advanced perception array
         state = [
+            # Long-range distance perception variables (6 values)
+            danger_s, danger_r, danger_l,
+            food_s, food_r, food_l,
+
+            # Same as before indicators (11 values)
             # Danger Straight
             (dir_r and game.is_collision(point_r)) or 
             (dir_l and game.is_collision(point_l)) or 
@@ -81,16 +135,15 @@ class Agent:
             (dir_u and game.is_collision(point_l)) or 
             (dir_r and game.is_collision(point_u)) or 
             (dir_l and game.is_collision(point_d)),
-            
+
             dir_l, dir_r, dir_u, dir_d,
-            
+
             game.food[0] < head[0], # food left
             game.food[0] > head[0], # food right
             game.food[1] < head[1], # food up
             game.food[1] > head[1]  # food down
         ]
-
-        return np.array(state, dtype=int)
+        return np.array(state, dtype=float)
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
