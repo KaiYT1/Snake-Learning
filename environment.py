@@ -15,12 +15,18 @@ BLOCK_SIZE = 20
 SPEED = 30  # Speed rate to see every step play out
 
 class SnakeGameAI:
-    def __init__(self, w=640, h=480):
+    def __init__(self, w=640, h=480, render_gui=False):
         self.w = w
         self.h = h
-        self.display = pygame.display.set_mode((self.w, self.h))
-        pygame.display.set_caption('Snake AI Training')
-        self.clock = pygame.time.Clock()
+        self.render_gui = render_gui
+
+        if self.render_gui:
+            self.display = pygame.display.set_mode((self.w, self.h))
+            pygame.display.set_caption('Snake AI Training')
+            self.clock = pygame.time.Clock()
+        else:
+            self.display = pygame.Surface((self.w, self.h))
+
         self.reset()
 
     def reset(self):
@@ -45,10 +51,12 @@ class SnakeGameAI:
 
     def step(self, action):
         self.frame_iteration += 1
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
+
+        if self.render_gui:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
 
         self._move(action)
         self.snake.insert(0, list(self.head))
@@ -60,7 +68,7 @@ class SnakeGameAI:
             game_over = True
             reward = -10
             return reward, game_over, self.score
-            
+
         if self.head == self.food:
             self.score += 1
             reward = 10
@@ -68,9 +76,10 @@ class SnakeGameAI:
         else:
             self.snake.pop()
 
-        # self._update_ui()
-        # self.clock.tick(SPEED)
-        
+        if self.render_gui:
+            self._update_ui()
+            self.clock.tick(SPEED)
+
         return reward, game_over, self.score
 
     def is_collision(self, pt=None):
