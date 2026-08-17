@@ -68,7 +68,7 @@ class SnakeGameAI:
             game_over = True
             reward = -10
             return reward, game_over, self.score
-            
+
         if self.head == self.food:
             self.score += 1
             reward = 10

@@ -112,6 +112,8 @@ class Agent:
         self.trainer.train_step(state, action, reward, next_state, done)
 
     def get_action(self, state, eval_mode=False):
+        final_move = [0, 0, 0]
+
         if eval_mode:
             state_tensor = torch.tensor(state, dtype=torch.float)
             # Remove tracking gradients to save memory during evaluation
@@ -121,13 +123,17 @@ class Agent:
             final_move[move_i] = 1
             return final_move
 
-        self.epsilon = 80 - self.n_games
-        final_move = [0, 0, 0]
-        
-        if random.randint(0, 200) < self.epsilon:
+        # Starts at 1.0 (100% random) and drops by 0.5% every game, bottoming out at 0.01 (1% random)
+        # This gives it thousands of games of gradual stabilization!
+        self.epsilon = max(0.01, 1.0 * (0.995 ** self.n_games))
+
+        # Industry-standard decimal probability check
+        if random.random() < self.epsilon:
+            # Explore: take random action
             move_idx = random.randint(0, 2)
             final_move[move_idx] = 1
         else:
+            # Exploit: use neural network
             state_tensor = torch.tensor(state, dtype=torch.float)
             prediction = self.model(state_tensor)
             move_idx = torch.argmax(prediction).item()
