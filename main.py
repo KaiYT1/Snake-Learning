@@ -42,25 +42,27 @@ def train():
             # train long-term memory (experience replay on batches of experiences)
             agent.train_long_memory()
 
+            agent.total_score += score
+
             # Reads and checks against the record value tied to the agent instance
             if score > agent.record:
                 agent.record = score
                 agent.model.save()
-                
-                # Update the tiny text file to save the score and current game count
-                with open('./model/record.txt', 'w') as f:
-                    f.write(f"{agent.record}\n{agent.n_games}")
+
                 print(f"ALL-TIME HIGH SCORE BREAKTHROUGH! Model saved at score: {agent.record}")
 
-            total_score += score
-            mean_score = total_score / agent.n_games
+            # Update the tiny text file to save the score and current game count
+            with open('./model/record.txt', 'w') as f:
+                f.write(f"{agent.record}\n{agent.n_games}\n{agent.total_score}")
+
+            mean_score = agent.total_score / agent.n_games
 
             # Print live stats to terminal
             print(f'Game: {agent.n_games}, Score: {score}, Record: {agent.record}, Mean Score: {mean_score:.2f}')
 
             plot_scores.append(score)
             plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores)
+            # plot(plot_scores, plot_mean_scores)
 
 if __name__ == '__main__':
     train()

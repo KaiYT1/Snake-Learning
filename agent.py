@@ -20,6 +20,7 @@ class Agent:
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
         self.record = 0
+        self.total_score = 0
 
         model_path = './model/model.pth'
         record_path = './model/record.txt'
@@ -42,7 +43,10 @@ class Agent:
                             if len(lines) > 1:
                                 self.n_games = int(lines[1].strip())
 
-                    print(f"Loaded historical target to beat: {self.record} (Resuming at Game {self.n_games})")
+                            if len(lines) > 2:
+                                self.total_score = int(lines[2].strip())
+
+                    print(f"Agent Restored: Record={self.record} | Games={self.n_games} | Historical Avg={(self.total_score/max(1, self.n_games)):.2f}")
             except Exception as e:
                 print(f"Problem restoring previous training state: {e}")
 
