@@ -17,6 +17,10 @@ class Agent:
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
         self.model = Linear_QNet(11, 256, 3)
+
+        # Fuses layers and transforms matrix execution graph structures into raw machine code instructions
+        # self.model = torch.compile(self.model) # needs C++ things so don't work for me
+
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
         self.record = 0
@@ -107,7 +111,16 @@ class Agent:
     def train_short_memory(self, state, action, reward, next_state, done):
         self.trainer.train_step(state, action, reward, next_state, done)
 
-    def get_action(self, state):
+    def get_action(self, state, eval_mode=False):
+        if eval_mode:
+            state_tensor = torch.tensor(state, dtype=torch.float)
+            # Remove tracking gradients to save memory during evaluation
+            with torch.no_grad():
+                prediction = self.model(state_tensor)
+            move_i = torch.argmax(prediction).item()
+            final_move[move_i] = 1
+            return final_move
+
         self.epsilon = 80 - self.n_games
         final_move = [0, 0, 0]
         
