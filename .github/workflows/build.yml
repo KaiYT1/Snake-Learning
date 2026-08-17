@@ -32,4 +32,4 @@ jobs:
 
             - name: Verify Core Imports
               run: |
-                pyton -c "import pygame, torch, numpy, matplotlib; print("Core stack verified successfully")"
+                python -c "import pygame, torch, numpy, matplotlib; print("Core stack verified successfully")"
